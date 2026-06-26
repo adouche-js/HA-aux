@@ -51,6 +51,7 @@ class MPVController:
         self._running = False
         self._request_id = 0
         self._lock = asyncio.Lock()
+        self._pending_requests: dict[int, asyncio.Future[dict[str, Any]]] = {}
 
         # Current playback state
         self.state: str = "idle"  # "playing", "paused", "idle"
@@ -202,36 +203,35 @@ class MPVController:
     async def _send_command(self, command: list[Any]) -> dict[str, Any]:
         """Send a JSON IPC command to MPV and return the response.
 
-        Thread-safe via asyncio.Lock.
+        Thread-safe via asyncio.Lock and asyncio.Future.
         """
-        if not self._writer:
+        if not self._writer or self._writer.is_closing():
             raise MPVControllerError("Not connected to MPV")
 
+        # Get a unique request ID
         async with self._lock:
             self._request_id += 1
-            payload = (
-                json.dumps({"command": command, "request_id": self._request_id}) + "\n"
-            )
+            request_id = self._request_id
 
-            try:
-                self._writer.write(payload.encode("utf-8"))
-                await self._writer.drain()
+        # Create a future to wait for the response
+        future: asyncio.Future[dict[str, Any]] = asyncio.Future()
+        self._pending_requests[request_id] = future
 
-                response = await asyncio.wait_for(self._reader.readline(), timeout=30)
-            except asyncio.TimeoutError as err:
-                raise MPVControllerError("Timeout waiting for MPV response") from err
-            except (ConnectionError, OSError) as err:
-                self._running = False
-                raise MPVControllerError(f"MPV connection lost: {err}") from err
-
-        if not response:
-            return {}
+        payload = json.dumps({"command": command, "request_id": request_id}) + "\n"
 
         try:
-            return json.loads(response.decode("utf-8"))
-        except json.JSONDecodeError as err:
-            _LOGGER.warning("Invalid JSON response from MPV: %s", err)
-            return {}
+            self._writer.write(payload.encode("utf-8"))
+            await self._writer.drain()
+            return await asyncio.wait_for(future, timeout=30)
+        except asyncio.TimeoutError as err:
+            raise MPVControllerError(
+                f"Timeout waiting for MPV response to {command[0]}"
+            ) from err
+        except (ConnectionError, OSError) as err:
+            self._running = False
+            raise MPVControllerError(f"MPV connection lost: {err}") from err
+        finally:
+            self._pending_requests.pop(request_id, None)
 
     async def _observe_properties(self) -> None:
         """Register property observers for automatic state tracking."""
@@ -256,27 +256,41 @@ class MPVController:
     # ------------------------------------------------------------------
 
     async def _event_listener(self) -> None:
-        """Background task that reads events from MPV's IPC socket."""
-        while self._running:
+        """Background task that reads from MPV's IPC socket.
+
+        Dispatches messages to either pending command futures or
+        to the event handler.
+        """
+        while self._running and self._reader:
             try:
-                line = await asyncio.wait_for(self._reader.readline(), timeout=30)
-            except asyncio.TimeoutError:
-                continue
+                line = await self._reader.readline()
             except (ConnectionError, OSError) as err:
-                _LOGGER.error("MPV event listener error: %s", err)
+                if self._running:
+                    _LOGGER.error("MPV socket read error: %s", err)
                 break
 
             if not line:
-                _LOGGER.debug("MPV event stream ended")
+                if self._running:
+                    _LOGGER.debug("MPV IPC socket closed")
                 break
 
             try:
-                event = json.loads(line.decode("utf-8"))
+                data = json.loads(line.decode("utf-8"))
             except json.JSONDecodeError:
                 _LOGGER.debug("Invalid JSON from MPV: %s", line[:200])
                 continue
 
-            await self._handle_event(event)
+            # Case 1: This is a response to a command
+            request_id = data.get("request_id")
+            if request_id is not None:
+                future = self._pending_requests.get(request_id)
+                if future and not future.done():
+                    future.set_result(data)
+                continue
+
+            # Case 2: This is an event
+            if "event" in data:
+                await self._handle_event(data)
 
     async def _handle_event(self, event: dict[str, Any]) -> None:
         """Process a single MPV event."""
