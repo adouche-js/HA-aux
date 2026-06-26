@@ -73,11 +73,19 @@ class AudioDetector:
         _LOGGER.info("Detecting ALSA audio devices...")
         self._devices = []
 
+        # Try multiple methods to ensure detection
         self._detect_from_proc()
+        self._detect_from_aplay()
+        self._detect_from_dev_snd()
 
-        if not self._devices:
-            _LOGGER.debug("No devices from /proc/asound, trying aplay -l")
-            self._detect_from_aplay()
+        # Remove duplicates (based on hw_id)
+        seen_hw_ids = set()
+        unique_devices = []
+        for dev in self._devices:
+            if dev.hw_id not in seen_hw_ids:
+                unique_devices.append(dev)
+                seen_hw_ids.add(dev.hw_id)
+        self._devices = unique_devices
 
         if self._devices:
             _LOGGER.info("Found %d audio device(s):", len(self._devices))
@@ -224,6 +232,40 @@ class AudioDetector:
                     device_type=dev_type,
                 )
                 self._devices.append(device)
+
+    # ------------------------------------------------------------------
+    # Detection from /dev/snd
+    # ------------------------------------------------------------------
+
+    def _detect_from_dev_snd(self) -> None:
+        """Scan /dev/snd for PCM playback devices."""
+        dev_snd = Path("/dev/snd")
+        if not dev_snd.exists():
+            _LOGGER.debug("/dev/snd does not exist")
+            return
+
+        # Look for pcmC0D0p, pcmC1D0p etc (p for playback)
+        for pcm_path in dev_snd.glob("pcmC*D*p"):
+            match = re.search(r"pcmC(\d+)D(\d+)p", pcm_path.name)
+            if match:
+                card_id = int(match.group(1))
+                device_id = int(match.group(2))
+                hw_id = f"hw:{card_id},{device_id}"
+
+                # Skip if already detected
+                if any(d.hw_id == hw_id for d in self._devices):
+                    continue
+
+                _LOGGER.debug("Found raw PCM device: %s", hw_id)
+                self._devices.append(
+                    AudioDevice(
+                        card_id=card_id,
+                        device_id=device_id,
+                        name=f"Generic Audio Device ({hw_id})",
+                        description=f"Raw ALSA device at {pcm_path}",
+                        device_type="unknown",
+                    )
+                )
 
     # ------------------------------------------------------------------
     # Device classification

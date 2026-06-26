@@ -29,15 +29,9 @@ RUN apk add --no-cache --virtual .build-deps \
 # -------------------------------------------------------------------
 # Application
 # -------------------------------------------------------------------
+COPY rootfs /
 COPY src/ha_aux_addon/ /usr/local/lib/ha_aux_addon/
 ENV PYTHONPATH="/usr/local/lib"
 
-# -------------------------------------------------------------------
-# Bypass s6-overlay init entirely — the HA base image uses it as the
-# default entrypoint, but s6-overlay-suexec crashes at runtime with
-# "can only run as pid 1" in Supervisor 2026.06.
-# We set an empty ENTRYPOINT and run the Python server directly as
-# PID 1, where it handles its own signals.
-# -------------------------------------------------------------------
-ENTRYPOINT []
-CMD ["python3", "-m", "ha_aux_addon"]
+RUN chmod a+x /etc/services.d/ha-aux/run \
+    && chmod a+x /etc/cont-init.d/00-audio-permissions.sh
