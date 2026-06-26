@@ -1,0 +1,24 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to HA aux Add-on",
+        "description": "Enter the URL of the HA aux add-on API and a name for the media player.",
+        "data": {
+          "api_url": "API URL",
+          "device_name": "Device Name"
+        }
+      },
+      "discovery_confirm": {
+        "title": "Discovered HA aux Add-on",
+        "description": "The HA aux audio renderer add-on was found on your system at {device_name}. Do you want to add it?"
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to the HA aux add-on. Make sure it is installed and running."
+    },
+    "abort": {
+      "already_configured": "This HA aux add-on is already configured."
+    }
+  }
+}

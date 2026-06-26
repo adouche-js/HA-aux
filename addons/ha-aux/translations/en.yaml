@@ -1,0 +1,40 @@
+en:
+  configuration:
+    audio_output:
+      name: "Audio Output Device"
+      description: >-
+        ALSA audio output device. Set to "auto" for automatic detection,
+        or specify a device like "hw:0,0" (internal analog),
+        "hw:0,3" (HDMI), "hw:1,0" (USB), or a device name from `aplay -L`.
+    device_name:
+      name: "Media Player Name"
+      description: "Name of the media player entity in Home Assistant."
+    initial_volume:
+      name: "Initial Volume"
+      description: "Initial volume level (0-100)."
+    max_volume:
+      name: "Maximum Volume"
+      description: "Maximum allowed volume level (0-100)."
+    keep_alive_enabled:
+      name: "Keep-Alive Enabled"
+      description: >-
+        Periodic inaudible sounds to prevent standby mode. Disabled by default.
+    keep_alive_interval:
+      name: "Keep-Alive Interval"
+      description: "Interval between keep-alive sounds in seconds (30-600)."
+    keep_alive_duration:
+      name: "Keep-Alive Duration"
+      description: "Duration of each keep-alive sound in milliseconds (50-500)."
+    keep_alive_type:
+      name: "Keep-Alive Type"
+      description: >-
+        Type of keep-alive sound. "sine" generates a pure tone,
+        "white_noise" generates broadband noise. Both are played at very low volume.
+    keep_alive_frequency:
+      name: "Keep-Alive Frequency"
+      description: "Frequency of the sine wave keep-alive sound in Hz (20-200)."
+    keep_alive_volume:
+      name: "Keep-Alive Volume"
+      description: >-
+        Volume level of the keep-alive sound (0.001-0.1). Very low levels
+        are recommended to avoid audible distraction.

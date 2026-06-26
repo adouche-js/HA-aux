@@ -1,0 +1,36 @@
+name: "HA aux Audio Renderer"
+version: "1.0.0"
+slug: "ha-aux"
+description: "Expose the physical audio output of your machine as a Home Assistant media_player. Compatible with Music Assistant, TTS, Assist, and automations."
+arch:
+  - amd64
+  - aarch64
+startup: application
+boot: auto
+host_network: true
+audio: true
+homeassistant_api: true
+ingress: false
+panel_icon: mdi:speaker
+options:
+  audio_output: "auto"
+  device_name: "HA aux"
+  initial_volume: 50
+  max_volume: 100
+  keep_alive_enabled: false
+  keep_alive_interval: 60
+  keep_alive_duration: 100
+  keep_alive_type: "sine"
+  keep_alive_frequency: 60
+  keep_alive_volume: 0.01
+schema:
+  audio_output: str?
+  device_name: str?
+  initial_volume: "int(0,100)?"
+  max_volume: "int(0,100)?"
+  keep_alive_enabled: bool?
+  keep_alive_interval: "int(30,600)?"
+  keep_alive_duration: "int(50,500)?"
+  keep_alive_type: str?
+  keep_alive_frequency: "int(20,200)?"
+  keep_alive_volume: "float(0.001,0.1)?"

@@ -1,0 +1,7 @@
+{
+  "name": "HA aux Audio Renderer",
+  "content_in_root": false,
+  "domains": ["ha_aux"],
+  "iot_class": "local_polling",
+  "render_readme": true
+}

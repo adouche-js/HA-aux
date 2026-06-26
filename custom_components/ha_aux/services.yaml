@@ -1,0 +1,9 @@
+# No custom services defined.
+# All functionality uses the standard media_player services:
+# - media_player.play_media
+# - media_player.media_pause
+# - media_player.media_play
+# - media_player.media_stop
+# - media_player.volume_set
+# - media_player.volume_mute
+# - media_player.media_seek
